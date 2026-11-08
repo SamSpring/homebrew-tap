@@ -30,8 +30,12 @@ jobs:
       - name: Check style
         run: brew style --cask samspring/tap/samspring-spacebar
       - name: Audit package metadata and download
+        env:
+          HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
         run: brew audit --strict --online --cask samspring/tap/samspring-spacebar
       - name: Check release discovery
+        env:
+          HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
         run: brew livecheck --cask --json samspring/tap/samspring-spacebar
       - name: Download and verify checksum
         run: brew fetch --cask --os=golden_gate --arch=arm samspring/tap/samspring-spacebar
