@@ -1,0 +1,48 @@
+name: Validate cask without installation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_ANALYTICS: 1
+      HOMEBREW_NO_ENV_HINTS: 1
+      HOMEBREW_DEVELOPER: 1
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Prepare the isolated runner's Homebrew
+        run: brew update
+      - name: Register the exact checkout as a test tap
+        run: |
+          brew tap samspring/tap "$GITHUB_WORKSPACE"
+          test "$(git -C "$(brew --repository samspring/tap)" rev-parse HEAD)" = "$(git rev-parse HEAD)"
+          brew trust --cask samspring/tap/samspring-spacebar
+      - name: Check style
+        run: brew style --cask samspring/tap/samspring-spacebar
+      - name: Audit package metadata and download
+        run: brew audit --strict --online --cask samspring/tap/samspring-spacebar
+      - name: Check release discovery
+        run: brew livecheck --cask --json samspring/tap/samspring-spacebar
+      - name: Download and verify checksum
+        run: brew fetch --cask samspring/tap/samspring-spacebar
+      - name: Assess the signed archive without installing or launching
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$(brew --cache --cask samspring/tap/samspring-spacebar)"
+          stage="$(mktemp -d)"
+          trap 'rm -rf "$stage"' EXIT
+          ditto -x -k "$archive" "$stage"
+          codesign --verify --deep --strict "$stage/SpaceBar.app"
+          xcrun stapler validate "$stage/SpaceBar.app"
+          spctl --assess --type execute --verbose=4 "$stage/SpaceBar.app"
