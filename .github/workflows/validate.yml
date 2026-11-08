@@ -34,12 +34,15 @@ jobs:
       - name: Check release discovery
         run: brew livecheck --cask --json samspring/tap/samspring-spacebar
       - name: Download and verify checksum
-        run: brew fetch --cask samspring/tap/samspring-spacebar
+        run: brew fetch --cask --os=golden_gate --arch=arm64 samspring/tap/samspring-spacebar
       - name: Assess the signed archive without installing or launching
         shell: bash
         run: |
           set -euo pipefail
-          archive="$(brew --cache --cask samspring/tap/samspring-spacebar)"
+          # The hosted runner may use an older macOS. Select the supported
+          # download target for metadata/cache lookup; never launch the app.
+          archive="$(brew --cache --cask --os=golden_gate --arch=arm64 samspring/tap/samspring-spacebar)"
+          test -f "$archive"
           stage="$(mktemp -d)"
           trap 'rm -rf "$stage"' EXIT
           ditto -x -k "$archive" "$stage"
